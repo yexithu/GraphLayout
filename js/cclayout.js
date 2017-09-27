@@ -208,11 +208,78 @@ CCLayout = {
         return transformF;
     },
 
+    multiDijkstra: function(graph) {
+        var nodes = graph.nodes,
+            links = graph.links,
+            n = graph.nodes.length,
+            m = graph.links.length;
+        
+        var ID2Idx = {};
+        var nbr = nodes.map((x) => []);
+
+        for (var i = 0; i < n; ++i) {
+            ID2Idx[nodes[i].id] = i;
+        }
+
+        for (var i = 0; i < m; ++i) {
+            var srcIdx = ID2Idx[links[i].source];
+            var dstIdx = ID2Idx[links[i].target];
+            nbr[srcIdx].push(dstIdx);
+            nbr[dstIdx].push(srcIdx);
+        }
+    
+        var D = [];
+        for (var i = 0; i < n; ++i) {     
+            console.time('Running');   
+            var Q = new FibonacciHeap();
+            var leftCount = n;
+            var distance = graph.nodes.map((x) => Infinity);
+            distance[i] = 0;
+            // for (var j = 0; j < i; ++j) {
+            //     distance[j] = D[j][i];
+            //     var nextNbr = nbr[j];
+            //     for (var k = 0; k < nextNbr.length; ++k) {
+            //         if (nextNbr[k] <i) {
+            //             continue;
+            //         }
+            //         distance[nextNbr[k]] = Math.min(distance[j] + 1, distance[nextNbr[k]])
+            //     }
+            //     --leftCount;
+            // }
+
+            var fibNodes = [];
+            for (var j = 0; j < n; ++j) {
+                fibNodes.push(Q.insert(distance[j], graph.nodes[j]));
+            }
+
+            while(leftCount > 0) {
+                var u = Q.extractMinimum();
+                var nextNode = u.value;
+                var nextIdx = ID2Idx[nextNode.id];
+                // console.log(u.key, distance[nextIdx]);
+                var nextNbr = nbr[nextIdx];
+                for (var j = 0; j < nextNbr.length; ++j) {
+                    if (distance[nextNbr[j]] > (distance[nextIdx]+ 1)) {
+                        distance[nextNbr[j]] = distance[nextIdx]+ 1;
+                        Q.decreaseKey(fibNodes[nextNbr[j]], distance[nextIdx]+ 1);
+                    }
+                }
+
+                --leftCount;
+            }
+            D.push(distance);
+            console.timeEnd('Running');   
+        }
+        return D;
+    },
+
     floydWarshall: function(graph) {        
         var D = [];
         var adjMtx = [];
         var n = graph.nodes.length;
         var m = graph.links.length;
+        console.log(graph.nodes.length);
+        console.log(graph.links.length);
 
         for (var i = 0; i < n; ++i) {
             var row = [];
@@ -241,6 +308,7 @@ CCLayout = {
         var D_ = D.map((x) => x.slice());
         // console.log(adjMtx);        
         for (var k = 0; k < n; ++k) {
+            console.time('Running');   
             for (var i = 0; i < n; ++i) {
                 for (var j = 0; j < n; ++j) {
                         var entry = Math.min(D[i][j], D[i][k] + D[k][j]);
@@ -250,8 +318,9 @@ CCLayout = {
             var temp = D;
             D = D_;
             D_ = temp;
+            console.timeEnd('Running');   
         }
 
         return D;
-    } 
+    },
 };

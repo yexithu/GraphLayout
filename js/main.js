@@ -5,21 +5,48 @@ var width = $('svg').width(),
 
 var CIRCLERADIUS = 2;
 
-d3.json("/data/large.json", function (error, graph) {
+d3.json("/data/big.json", function (error, graph) {
     if (error) throw error;
-    console.log(graph.nodes.length);
-    console.log(graph.links.length);
+    // fibheapTest();
+    
     console.time('Calculate Connected Components');
     components = CCCalculator.divideGraph(graph);
     console.timeEnd('Calculate Connected Components');
     components = components.slice(0, 1);
-    // dynamicRender(components);
-    dynamicStressMinimization(components);
+    fibheapTest(components);
+    // // dynamicRender(components);
+    // dynamicStressMinimization(components);
     // CCLayout.setViewSize(width, height);
     // CCLayout.apply(components);
 
     // renderCC(components);
 });
+
+function fibheapTest(cc) {
+    var graph = cc[0];
+
+    console.time('floyd');
+    var D1 = CCLayout.floydWarshall(graph);
+    console.log(D1);
+    console.timeEnd('floyd');
+
+    console.time('dijkstra');
+    var D2 = CCLayout.multiDijkstra(graph);
+    console.log(D2);
+    console.timeEnd('dijkstra');
+
+    for (var i = 0; i < D1.length; ++i) {
+        var row1 = D1[i];
+        var row2 = D2[i];
+        for (var j = 0; j < row1.length; ++j) {
+            if (row1[j] !== row2[j]) {
+                alert('Badly Wrong');
+                throw('Badly wrong!');
+            }
+        }
+    }
+    console.log('Quite good');
+}
 
 function dynamicStressMinimization(cc) {
     var graph = cc[0];
@@ -43,7 +70,10 @@ function dynamicStressMinimization(cc) {
     
     // graph.nodes.map((x) => {x.x = 0});
     // ticked();
+    console.log('Start Floyd timing');
+    console.time('floyd');
     var D = CCLayout.floydWarshall(graph);
+    console.timeEnd('floyd');
     var W = D.map((x) => (x.map((y) => 1 / (y * y))));
     CCLayout.randomInit(graph);    
 
