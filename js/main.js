@@ -5,7 +5,7 @@ var width = $('svg').width(),
 
 var CIRCLERADIUS = 2;
 
-d3.json("/data/big.json", function (error, graph) {
+d3.json("/data/large.json", function (error, graph) {
     if (error) throw error;
     // fibheapTest();
     
@@ -25,27 +25,27 @@ d3.json("/data/big.json", function (error, graph) {
 function fibheapTest(cc) {
     var graph = cc[0];
 
-    console.time('floyd');
-    var D1 = CCLayout.floydWarshall(graph);
-    console.log(D1);
-    console.timeEnd('floyd');
+    // console.time('floyd');
+    // var D1 = CCLayout.floydWarshall(graph);
+    // console.log(D1);
+    // console.timeEnd('floyd');
 
     console.time('dijkstra');
     var D2 = CCLayout.multiDijkstra(graph);
     console.log(D2);
     console.timeEnd('dijkstra');
 
-    for (var i = 0; i < D1.length; ++i) {
-        var row1 = D1[i];
-        var row2 = D2[i];
-        for (var j = 0; j < row1.length; ++j) {
-            if (row1[j] !== row2[j]) {
-                alert('Badly Wrong');
-                throw('Badly wrong!');
-            }
-        }
-    }
-    console.log('Quite good');
+    // for (var i = 0; i < D1.length; ++i) {
+    //     var row1 = D1[i];
+    //     var row2 = D2[i];
+    //     for (var j = 0; j < row1.length; ++j) {
+    //         if (row1[j] !== row2[j]) {
+    //             alert('Badly Wrong');
+    //             throw('Badly wrong!');
+    //         }
+    //     }
+    // }
+    // console.log('Quite good');
 }
 
 function dynamicStressMinimization(cc) {

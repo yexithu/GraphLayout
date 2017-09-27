@@ -234,21 +234,23 @@ CCLayout = {
             var Q = new FibonacciHeap();
             var leftCount = n;
             var distance = graph.nodes.map((x) => Infinity);
-            distance[i] = 0;
-            // for (var j = 0; j < i; ++j) {
-            //     distance[j] = D[j][i];
-            //     var nextNbr = nbr[j];
-            //     for (var k = 0; k < nextNbr.length; ++k) {
-            //         if (nextNbr[k] <i) {
-            //             continue;
-            //         }
-            //         distance[nextNbr[k]] = Math.min(distance[j] + 1, distance[nextNbr[k]])
-            //     }
-            //     --leftCount;
-            // }
-
             var fibNodes = [];
-            for (var j = 0; j < n; ++j) {
+            distance[i] = 0;
+            
+            for (var j = 0; j < i; ++j) {
+                distance[j] = D[j][i];
+                var nextNbr = nbr[j];
+                for (var k = 0; k < nextNbr.length; ++k) {
+                    if (nextNbr[k] <i) {
+                        continue;
+                    }
+                    distance[nextNbr[k]] = Math.min(distance[j] + 1, distance[nextNbr[k]])
+                }
+                fibNodes.push(null);
+                --leftCount;
+            }
+
+            for (var j = i; j < n; ++j) {
                 fibNodes.push(Q.insert(distance[j], graph.nodes[j]));
             }
 
