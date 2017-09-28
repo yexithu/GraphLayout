@@ -1,62 +1,136 @@
 CCLayout = {
     MINLENGTH: 20,
 
-    PADDING: 10,
+    PADDING: 20,
 
     height: 0,
 
     width: 0,
 
-    MARGIN: 0.025,
+    MARGIN: 0.05,
 
-    setViewSize: function(w, h) {
+    setViewSize: function (w, h) {
         this.width = w;
         this.height = h;
     },
 
-    apply: function(cc) {
+    apply: function (cc) {
         console.time('Calculate Static Layout');
         for (var i = 0; i < cc.length; ++i) {
             // this.calcStaticFDLayout(cc[i]);
-            this.metricMDSLayout(cc[i]);
+            this.strssMinimizationLayout(cc[i], -2);
         }
         console.timeEnd('Calculate Static Layout');
-        
-        // console.time('Calculate Bounding Box');
-        // for (var i = 0; i < cc.length; ++i) {
-        //     this.calcBoudingBox(cc[i]);
-        // }
-        // cc.sort(this.graphSortFunction).reverse();
-        // console.log(cc);
-        // console.timeEnd('Calculate Bounding Box');
 
-        // console.time('Calculate Grid Layout');
-        // this.calcBoxesGridLayout(cc);
-        // console.timeEnd('Calculate Grid Layout');
+        console.time('Calculate Bounding Box');
+        for (var i = 0; i < cc.length; ++i) {
+            this.calcBoudingBox(cc[i]);
+        }
+        cc.sort(this.graphSortFunction).reverse();
+        console.log(cc);
+        console.timeEnd('Calculate Bounding Box');
+
+        console.time('Calculate Grid Layout');
+        this.calcBoxesGridLayout(cc);
+        console.timeEnd('Calculate Grid Layout');
     },
 
-    metricMDSLayout: function(graph) {
+    metricMDSLayout: function (graph) {
         var D = this.floydWarshall(graph);
     },
 
-    randomInit: function(graph) {
+    strssMinimizationLayout: function (graph, q) {
+        var D;
+        if (graph.nodes.length > 50) {
+            console.time('Dijkstra');
+            D = CCLayout.multiDijkstra(graph);
+            console.timeEnd('Dijkstra');
+        } else {
+            console.time('Floyd');
+            D = CCLayout.floydWarshall(graph);
+            console.timeEnd('Floyd');
+        }
+        graph.D = D;
+
+        var W = D.map((x) => (x.map((y) => Math.pow(y, q))));
+        this.randomInit(graph);
+
+        console.time('strees minimization');
+        for (var i = 0; i < 300; ++i) {
+            ticked();
+        }
+        console.timeEnd('strees minimization');
+
+        function ticked() {
+            var numx = 0,
+                numy = 0,
+                den = 0,
+                edij = 0,
+                sij = 0,
+                nodeix = 0,
+                nodeiy = 0,
+                nodejx = 0,
+                nodejy = 0,
+                wij = 0;
+
+            for (var i = 0; i < graph.nodes.length; ++i) {
+                numx = 0;
+                numy = 0;
+                den = 0;
+                nodeix = graph.nodes[i].x;
+                nodeiy = graph.nodes[i].y;
+                for (var j = 0; j < graph.nodes.length; ++j) {
+                    if (i == j) {
+                        continue;
+                    }
+                    wij = W[i][j];
+                    nodejx = graph.nodes[j].x;
+                    nodejy = graph.nodes[j].y;
+
+                    edij = Math.sqrt((nodeix - nodejx) * (nodeix - nodejx) +
+                        (nodeiy - nodejy) * (nodeiy - nodejy));
+                    sij = D[i][j] / edij;
+
+                    numx += wij * (nodejx + sij * (nodeix - nodejx));
+                    numy += wij * (nodejy + sij * (nodeiy - nodejy));
+                    den += wij;
+                }
+                graph.nodes[i].x = (numx / den);
+                graph.nodes[i].y = (numy / den);
+            }
+        }
+    },
+
+    randomInit: function (graph) {
+        Math.seedrandom('vis');
         graph.nodes.map((node) => {
             node.x = (Math.random() - 0.5) * 4;
             node.y = (Math.random() - 0.5) * 4;
         });
     },
 
-    calcStaticFDLayout:function(graph) {
+    calcStaticFDLayout: function (graph) {
+        var D;
+        if (graph.nodes.length > 50) {
+            console.time('Dijkstra');
+            D = CCLayout.multiDijkstra(graph);
+            console.timeEnd('Dijkstra');
+        } else {
+            console.time('Floyd');
+            D = CCLayout.floydWarshall(graph);
+            console.timeEnd('Floyd');
+        }
+        graph.D = D;
+
         var simulation = d3.forceSimulation(graph.nodes)
             .force("link", d3.forceLink(graph.links).id(function (d) { return d.id; }))
-            // .force("charge", d3.forceManyBody())
-            // .force("radial", d3.forceRadial(30))
+            .force("charge", d3.forceManyBody(-10))
             .force("X", d3.forceX())
             .force("Y", d3.forceY())
             // .force("center", d3.forceCenter())
             .stop();
         //default
-        simulation.alphaDecay(0.0014);
+        // simulation.alphaDecay(0.0014);
         // See https://github.com/d3/d3-force/blob/master/README.md#simulation_tick
         for (var i = 0, n = Math.ceil(Math.log(simulation.alphaMin()) / Math.log(1 - simulation.alphaDecay())); i < n; ++i) {
             simulation.tick();
@@ -66,7 +140,7 @@ CCLayout = {
         // }
     },
 
-    calcBoudingBox: function(graph) {
+    calcBoudingBox: function (graph) {
         var x, y;
         var w, h;
         var mx, my;
@@ -96,36 +170,36 @@ CCLayout = {
         graph.box = box;
     },
 
-    calcBoxesGridLayout: function(cc) {
-        var boxes = cc.map((x) => {return x.box});
-        var boxesArea = boxes.map((x)=>{return x.w * x.h});
-        var sumArea = boxesArea.reduce((acc, cur) => {return acc + cur});        
+    calcBoxesGridLayout: function (cc) {
+        var boxes = cc.map((x) => { return x.box });
+        var boxesArea = boxes.map((x) => { return x.w * x.h });
+        var sumArea = boxesArea.reduce((acc, cur) => { return acc + cur });
         var viewArea = this.height * this.width;
 
         var scale = Math.sqrt(viewArea / sumArea);
-        var scaledBoxes = boxes.map((b)=> {return {x:0, y:0, w:b.w * scale, h: b.h * scale}});
-        
+        var scaledBoxes = boxes.map((b) => { return { x: 0, y: 0, w: b.w * scale, h: b.h * scale } });
+
         var width = this.width,
             height = this.height,
             padding = this.PADDING;
-        
+
         var top = 0;
         var left = 0;
-        var rowRight = 0, 
+        var rowRight = 0,
             rowBot = 0,
             layoutRight = 0,
             layoutBot = 0;
         var i = 0;
 
         // top and left determine where to insert a new box
-        while(true) {
+        while (true) {
             if (left <= width) {
                 if (i === scaledBoxes.length) {
                     layoutRight = Math.max(layoutRight, rowRight);
-                    layoutBot = Math.max(layoutBot,rowBot);
+                    layoutBot = Math.max(layoutBot, rowBot);
                     break;
                 }
-                
+
                 var box = scaledBoxes[i];
                 //same row, insert a box
                 box.x = left;
@@ -135,10 +209,10 @@ CCLayout = {
 
                 left = rowRight + padding;
                 ++i;
-            } else {                
+            } else {
                 //To a new row
                 layoutRight = Math.max(layoutRight, rowRight);
-                layoutBot = Math.max(layoutBot,rowBot);
+                layoutBot = Math.max(layoutBot, rowBot);
 
                 left = 0;
                 top = rowBot + padding;
@@ -167,17 +241,17 @@ CCLayout = {
         }
     },
 
-    pointTransform: function(graph, dstBox) {
+    pointTransform: function (graph, dstBox) {
         var box = graph.box;
         var scale = dstBox.w / box.w;
         graph.dstBox = dstBox;
-        graph.nodes.map(function(node) {
+        graph.nodes.map(function (node) {
             node.x = (node.x - box.x) * scale + dstBox.x;
             node.y = (node.y - box.y) * scale + dstBox.y;
         });
     },
 
-    graphSortFunction: function(a, b) {
+    graphSortFunction: function (a, b) {
         if (a.box.h === b.box.height) {
             return a.box.w - b.box.w;
         } else {
@@ -185,20 +259,20 @@ CCLayout = {
         }
     },
 
-    getAlignFunction: function(box) {
+    getAlignFunction: function (box) {
         var width = this.width,
             height = this.height;
-        var scalew = width/ box.w,
+        var scalew = width / box.w,
             scaleh = height / box.h;
-        
+
         var scale = Math.min(scalew, scaleh);
         var newW = box.w * scale,
             newH = box.h * scale;
-        
+
         var offestX = 0.5 * width - (box.x + 0.5 * newW),
             offestY = 0.5 * height - (box.y + 0.5 * newH);
 
-        var transformF = function(input) {
+        var transformF = function (input) {
             input.x = box.x + (input.x - box.x) * scale + offestX;
             input.y = box.y + (input.y - box.y) * scale + offestY;
             input.w = input.w * scale;
@@ -208,12 +282,12 @@ CCLayout = {
         return transformF;
     },
 
-    multiDijkstra: function(graph) {
+    multiDijkstra: function (graph) {
         var nodes = graph.nodes,
             links = graph.links,
             n = graph.nodes.length,
             m = graph.links.length;
-        
+
         var ID2Idx = {};
         var nbr = nodes.map((x) => []);
 
@@ -227,21 +301,21 @@ CCLayout = {
             nbr[srcIdx].push(dstIdx);
             nbr[dstIdx].push(srcIdx);
         }
-    
+
         var D = [];
-        for (var i = 0; i < n; ++i) {     
+        for (var i = 0; i < n; ++i) {
             // console.time('Running');   
             var Q = new FibonacciHeap();
             var leftCount = n;
             var distance = graph.nodes.map((x) => Infinity);
             var fibNodes = [];
             distance[i] = 0;
-            
+
             for (var j = 0; j < i; ++j) {
                 distance[j] = D[j][i];
                 var nextNbr = nbr[j];
                 for (var k = 0; k < nextNbr.length; ++k) {
-                    if (nextNbr[k] <i) {
+                    if (nextNbr[k] < i) {
                         continue;
                     }
                     distance[nextNbr[k]] = Math.min(distance[j] + 1, distance[nextNbr[k]])
@@ -254,16 +328,16 @@ CCLayout = {
                 fibNodes.push(Q.insert(distance[j], graph.nodes[j]));
             }
 
-            while(leftCount > 0) {
+            while (leftCount > 0) {
                 var u = Q.extractMinimum();
                 var nextNode = u.value;
                 var nextIdx = ID2Idx[nextNode.id];
                 // console.log(u.key, distance[nextIdx]);
                 var nextNbr = nbr[nextIdx];
                 for (var j = 0; j < nextNbr.length; ++j) {
-                    if (distance[nextNbr[j]] > (distance[nextIdx]+ 1)) {
-                        distance[nextNbr[j]] = distance[nextIdx]+ 1;
-                        Q.decreaseKey(fibNodes[nextNbr[j]], distance[nextIdx]+ 1);
+                    if (distance[nextNbr[j]] > (distance[nextIdx] + 1)) {
+                        distance[nextNbr[j]] = distance[nextIdx] + 1;
+                        Q.decreaseKey(fibNodes[nextNbr[j]], distance[nextIdx] + 1);
                     }
                 }
 
@@ -275,7 +349,7 @@ CCLayout = {
         return D;
     },
 
-    floydWarshall: function(graph) {        
+    floydWarshall: function (graph) {
         var D = [];
         var adjMtx = [];
         var n = graph.nodes.length;
@@ -288,13 +362,13 @@ CCLayout = {
             }
             D.push(row);
         }
-        
+
         var ID2Idx = {};
         for (var i = 0; i < n; ++i) {
             ID2Idx[graph.nodes[i].id] = i;
             D[i][i] = 0;
         }
-    
+
         for (var i = 0; i < m; ++i) {
             var link = graph.links[i];
             var idx1 = ID2Idx[link.source],
@@ -302,7 +376,7 @@ CCLayout = {
             D[idx1][idx2] = 1;
             D[idx2][idx1] = 1;
         }
-        
+
         adjMtx = D.map((x) => x.slice());
 
         var D_ = D.map((x) => x.slice());
@@ -311,8 +385,8 @@ CCLayout = {
             // console.time('Running');   
             for (var i = 0; i < n; ++i) {
                 for (var j = 0; j < n; ++j) {
-                        var entry = Math.min(D[i][j], D[i][k] + D[k][j]);
-                        D_[i][j] = entry;
+                    var entry = Math.min(D[i][j], D[i][k] + D[k][j]);
+                    D_[i][j] = entry;
                 }
             }
             var temp = D;

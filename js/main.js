@@ -3,7 +3,16 @@ var svg = d3.select("svg");
 var width = $('svg').width(),
     height = $('svg').height();
 
-var CIRCLERADIUS = 2;
+var CIRCLERADIUS = 3;
+
+var ActivedGraph = null;
+var ActivedGraphNode = null;
+
+var PlainColor = "#404040";
+var SelectedColor = "red";
+var FirstDegreeColor = "#A1A1FF";
+var SecondDegreeColor = "#2424FF";
+
 
 d3.json("/data/big.json", function (error, graph) {    
     if (error) throw error;
@@ -11,14 +20,14 @@ d3.json("/data/big.json", function (error, graph) {
     console.time('Calculate Connected Components');
     components = CCCalculator.divideGraph(graph);
     console.timeEnd('Calculate Connected Components');
-    components = components.slice(0, 1);
+    // components = components.slice(1, 2);
     // fibheapTest(components);
     // dynamicRender(components);
-    dynamicStressMinimization(components);
-    // CCLayout.setViewSize(width, height);
-    // CCLayout.apply(components);
+    // dynamicStressMinimization(components);
+    CCLayout.setViewSize(width, height);
+    CCLayout.apply(components);
 
-    // renderCC(components);
+    renderCC(components);
 });
 
 function fibheapTest(cc) {
@@ -62,7 +71,8 @@ function dynamicStressMinimizationVectorious(cc) {
         .selectAll("circle")
         .data(graph.nodes)
         .enter().append("circle")
-        .attr("r", 5);
+        .attr("r", 5)
+        .attr("stoke-width", 0);
 
     node.append("title")
         .text(function (d) { return d.id; });
@@ -252,7 +262,7 @@ function dynamicRender(cc) {
             .selectAll("circle")
             .data(element.nodes)
             .enter().append("circle")
-            .attr("r", 5)
+            .attr("r", CIRCLERADIUS)
 
         var simulation = d3.forceSimulation(element.nodes)
             .force("link", d3.forceLink(element.links).id(function (d) { return d.id; }))
@@ -284,7 +294,10 @@ function dynamicRender(cc) {
 }
 
 function renderCC(cc) {
+    svg.on("click", svgClicked);
     cc.forEach(function (graph) {
+        enhanceGraph(graph);
+
         var link = svg.append("g")
             .attr("class", "links")
             .selectAll("line")
@@ -297,26 +310,86 @@ function renderCC(cc) {
             .selectAll("circle")
             .data(graph.nodes)
             .enter().append("circle")
-            .attr("r", CIRCLERADIUS);
+            .attr("r", CIRCLERADIUS)
+            .attr("stroke-width", 0)
+            .on("click", nodeClicked);
         //   .attr("fill", function(d) { return color(d.group); })
         // .call(d3.drag()
-        //     .on("start", dragstarted)
+            // .on("start", dragstarted);
         //     .on("drag", dragged)
         //     .on("end", dragended));
-
+        var simulation = d3.forceSimulation(graph.nodes)
+        .force("link", d3.forceLink(graph.links).id(function (d) { return d.id; }))
+        .stop();
         node.append("title")
             .text(function (d) { return d.id; });
 
-        link
-            .attr("x1", function (d) { return d.source.x; })
-            .attr("y1", function (d) { return d.source.y; })
-            .attr("x2", function (d) { return d.target.x; })
-            .attr("y2", function (d) { return d.target.y; });
+        function nodeClicked(d) {
+            svgClicked();
+            d3.event.stopPropagation();
+            ActivedGraph = graph;
 
-        node
-            .attr("cx", function (d) { return d.x; })
-            .attr("cy", function (d) { return d.y; });
+            ActivedGraphNode = d;
+            d.color = SelectedColor;
+            var nodeId = d.index;
+            for (var i = 0; i < graph.nodes.length; ++i) {
+                if (graph.D[nodeId][i] === 1) {
+                    graph.nodes[i].color = FirstDegreeColor;
+                }
+                if (graph.D[nodeId][i] === 2) {
+                    graph.nodes[i].color = SecondDegreeColor;
+                }
+            }
+
+            reRender();
+        }
+
+        function reRender() {
+            link
+                .attr("x1", function (d) { return d.source.x; })
+                .attr("y1", function (d) { return d.source.y; })
+                .attr("x2", function (d) { return d.target.x; })
+                .attr("y2", function (d) { return d.target.y; })
+                .attr("fill", function (d) {return d.color});
+
+            node
+                .attr("cx", function (d) { return d.x; })
+                .attr("cy", function (d) { return d.y; })
+                .attr("fill", function (d) {return d.color});
+        }
+        reRender();
     });
+}
+
+function svgClicked() {
+    if (ActivedGraph === null) {
+        return;
+    }
+    var nodes = ActivedGraph.nodes,
+        links = ActivedGraph.links;
+    
+    for (var i = 0; i < nodes.length; ++i) {
+        nodes[i].color = PlainColor;
+    }
+
+    var node = svg
+        .selectAll("circle")
+        .attr("fill", function (d) {return d.color});
+
+    ActivedGraph = null;
+    ActivedGraphNode = null;
+}
+
+function enhanceGraph(graph) {
+    var nodes = graph.nodes,
+        links = graph.links;
+    
+    for (var i = 0; i < nodes.length; ++i) {
+        nodes[i].color = PlainColor;
+    }
+    for (var i = 0; i < links.length; ++i) {
+        links[i].color = PlainColor;
+    }
 }
 
 // function dragstarted(d) {
