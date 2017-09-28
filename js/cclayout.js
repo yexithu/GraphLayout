@@ -230,7 +230,7 @@ CCLayout = {
     
         var D = [];
         for (var i = 0; i < n; ++i) {     
-            console.time('Running');   
+            // console.time('Running');   
             var Q = new FibonacciHeap();
             var leftCount = n;
             var distance = graph.nodes.map((x) => Infinity);
@@ -270,7 +270,7 @@ CCLayout = {
                 --leftCount;
             }
             D.push(distance);
-            console.timeEnd('Running');   
+            // console.timeEnd('Running');   
         }
         return D;
     },
@@ -280,8 +280,6 @@ CCLayout = {
         var adjMtx = [];
         var n = graph.nodes.length;
         var m = graph.links.length;
-        console.log(graph.nodes.length);
-        console.log(graph.links.length);
 
         for (var i = 0; i < n; ++i) {
             var row = [];
@@ -310,7 +308,7 @@ CCLayout = {
         var D_ = D.map((x) => x.slice());
         // console.log(adjMtx);        
         for (var k = 0; k < n; ++k) {
-            console.time('Running');   
+            // console.time('Running');   
             for (var i = 0; i < n; ++i) {
                 for (var j = 0; j < n; ++j) {
                         var entry = Math.min(D[i][j], D[i][k] + D[k][j]);
@@ -320,7 +318,7 @@ CCLayout = {
             var temp = D;
             D = D_;
             D_ = temp;
-            console.timeEnd('Running');   
+            // console.timeEnd('Running');   
         }
 
         return D;

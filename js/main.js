@@ -5,17 +5,16 @@ var width = $('svg').width(),
 
 var CIRCLERADIUS = 2;
 
-d3.json("/data/large.json", function (error, graph) {
+d3.json("/data/big.json", function (error, graph) {    
     if (error) throw error;
-    // fibheapTest();
     
     console.time('Calculate Connected Components');
     components = CCCalculator.divideGraph(graph);
     console.timeEnd('Calculate Connected Components');
     components = components.slice(0, 1);
-    fibheapTest(components);
-    // // dynamicRender(components);
-    // dynamicStressMinimization(components);
+    // fibheapTest(components);
+    // dynamicRender(components);
+    dynamicStressMinimization(components);
     // CCLayout.setViewSize(width, height);
     // CCLayout.apply(components);
 
@@ -24,30 +23,121 @@ d3.json("/data/large.json", function (error, graph) {
 
 function fibheapTest(cc) {
     var graph = cc[0];
-
-    // console.time('floyd');
-    // var D1 = CCLayout.floydWarshall(graph);
-    // console.log(D1);
-    // console.timeEnd('floyd');
+    console.log(graph.nodes.length);
+    console.log(graph.links.length);
+    console.time('floyd');
+    var D1 = CCLayout.floydWarshall(graph);
+    console.log(D1);
+    console.timeEnd('floyd');
 
     console.time('dijkstra');
     var D2 = CCLayout.multiDijkstra(graph);
     console.log(D2);
     console.timeEnd('dijkstra');
 
-    // for (var i = 0; i < D1.length; ++i) {
-    //     var row1 = D1[i];
-    //     var row2 = D2[i];
-    //     for (var j = 0; j < row1.length; ++j) {
-    //         if (row1[j] !== row2[j]) {
-    //             alert('Badly Wrong');
-    //             throw('Badly wrong!');
-    //         }
-    //     }
-    // }
-    // console.log('Quite good');
+    for (var i = 0; i < D1.length; ++i) {
+        var row1 = D1[i];
+        var row2 = D2[i];
+        for (var j = 0; j < row1.length; ++j) {
+            if (row1[j] !== row2[j]) {
+                alert('Badly Wrong');
+                throw('Badly wrong!');
+            }
+        }
+    }
+    console.log('Quite good');
 }
+function dynamicStressMinimizationVectorious(cc) {
+    var graph = cc[0];
+    var n = graph.nodes.length;
+    var link = svg.append("g")
+        .attr("class", "links")
+        .selectAll("line")
+        .data(graph.links)
+        .enter().append("line")
+        .attr("stroke-width", function (d) { return Math.sqrt(d.value); });
 
+    var node = svg.append("g")
+        .attr("class", "nodes")
+        .selectAll("circle")
+        .data(graph.nodes)
+        .enter().append("circle")
+        .attr("r", 5);
+
+    node.append("title")
+        .text(function (d) { return d.id; });
+    
+    // graph.nodes.map((x) => {x.x = 0});
+    // ticked();
+    console.time('Dijkstra');
+    var D = CCLayout.multiDijkstra(graph);
+    console.timeEnd('Dijkstra');
+
+    var W = numeric.pow(D, -2);
+    for (var i = 0; i < n; ++i) {
+        W[i][i] = 0;
+    }
+    CCLayout.randomInit(graph);    
+
+    var simulation = d3.forceSimulation(graph.nodes)
+        .force("link", d3.forceLink(graph.links).id(function (d) { return d.id; }))
+        // .force("charge", d3.forceManyBody())
+        // .force("center", d3.forceCenter())
+        .stop();
+
+    var scale = 50;
+    var offesetX = width / 2;
+    var offesetY = height / 2;
+    var iteration = 1;
+    console.log('start rendering');
+
+    //2 * n
+    var X;
+    var X_;    
+    var rowX;
+    var rowY;
+    var matX;
+    var matX_;
+    var matY;
+    var matY_;
+    var S;
+    var ones = numeric.rep([n], 1);
+
+    X = numeric.rep([2, n], 0);
+    for (var i = 0; i < n; ++i) {
+        X[0][i] = graph.nodes[i].x;
+        X[1][i] = graph.nodes[i].y;
+    }    
+    X_ = numeric.transpose(X);
+
+    console.time('updating');
+    for (var i = 0; i < 300; ++i) {
+        ticked();
+    }
+    console.timeEnd('updating');
+
+    function ticked() {
+        S = numeric.muleq(numeric.dot(X_, X), -2);
+        rowX = X[0];
+        rowY = X[1];
+        matX = numeric.poweq(numeric.tensor(ones, rowX), 2);
+        matX_ = numeric.transpose(matX);
+        matY = numeric.pow(numeric.tensor(ones, rowY), 2);
+        matY_ = numeric.transpose(matY);
+        numeric.addeq(S, matX);
+        numeric.addeq(S, matX_);
+        numeric.addeq(S, matY);
+        numeric.addeq(S, matY_);
+        numeric.sqrteq(S);
+        
+        for (var i = 0; i < n; ++i) {
+            S[i][i] = Infinity;
+        }
+
+        S = numeric.div(1, S);
+        numeric.muleq(S, D);
+    }
+}
 function dynamicStressMinimization(cc) {
     var graph = cc[0];
 
@@ -70,10 +160,10 @@ function dynamicStressMinimization(cc) {
     
     // graph.nodes.map((x) => {x.x = 0});
     // ticked();
-    console.log('Start Floyd timing');
-    console.time('floyd');
-    var D = CCLayout.floydWarshall(graph);
-    console.timeEnd('floyd');
+    console.time('Dijkstra');
+    var D = CCLayout.multiDijkstra(graph);
+    console.timeEnd('Dijkstra');
+
     var W = D.map((x) => (x.map((y) => 1 / (y * y))));
     CCLayout.randomInit(graph);    
 
@@ -88,8 +178,15 @@ function dynamicStressMinimization(cc) {
     var offesetY = height / 2;
     var iteration = 1;
     console.log('start rendering');
-    ticked();    
+
+    console.time('updating');
+    for (var i = 0; i < 300; ++i) {
+        ticked();
+    }
+    console.timeEnd('updating');
+    
     function ticked() {
+
         var numx = 0,
             numy = 0,
             den = 0,
@@ -126,21 +223,16 @@ function dynamicStressMinimization(cc) {
             graph.nodes[i].x = (numx / den);
             graph.nodes[i].y = (numy / den);
         }
-        
-        link
-            .attr("x1", function (d) { return d.source.x * scale + offesetX; })
-            .attr("y1", function (d) { return d.source.y * scale + offesetY; })
-            .attr("x2", function (d) { return d.target.x * scale + offesetX; })
-            .attr("y2", function (d) { return d.target.y * scale + offesetY; });
-
-        node
-            .attr("cx", function (d) { return d.x * scale + offesetX; })
-            .attr("cy", function (d) { return d.y * scale + offesetY; });
-
-        if (iteration < 300) {
-            setTimeout(ticked, 50);
-        }
     }
+    link
+        .attr("x1", function (d) { return d.source.x * scale + offesetX; })
+        .attr("y1", function (d) { return d.source.y * scale + offesetY; })
+        .attr("x2", function (d) { return d.target.x * scale + offesetX; })
+        .attr("y2", function (d) { return d.target.y * scale + offesetY; });
+
+    node
+        .attr("cx", function (d) { return d.x * scale + offesetX; })
+        .attr("cy", function (d) { return d.y * scale + offesetY; });
 }
 
 function dynamicRender(cc) {
